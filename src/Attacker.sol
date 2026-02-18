@@ -2,7 +2,11 @@
 pragma solidity ^0.8.24;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ITokenReceiver} from "./MockToken.sol";
+
+/// @dev Callback interface the deployed token calls on contract recipients.
+interface ITokenReceiver {
+    function onTokenReceived(address from, uint256 amount) external;
+}
 
 interface IVulnerableVault {
     function deposit(uint256 amount) external;
