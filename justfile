@@ -1,5 +1,7 @@
 set dotenv-load
 
+import "lib/battlechain-lib/battlechain.just"
+
 RPC    := "battlechain"
 ACCT   := "battlechain"
 
@@ -22,6 +24,12 @@ request-attack-mode:
 # Step 4: Execute the attack (requires DAO approval first)
 attack:
     forge script script/Attack.s.sol --rpc-url {{RPC}} --broadcast -vvv --account {{ACCT}} --sender $SENDER_ADDRESS --legacy --gas-limit 90000000 --skip-simulation
+
+# ── Verification ──────────────────────────────────────────────────────────────
+
+# Verify all contracts from the Setup broadcast
+verify-setup:
+    just bc-verify-broadcast script/Setup.s.sol
 
 # ── Utilities ──────────────────────────────────────────────────────────────────
 

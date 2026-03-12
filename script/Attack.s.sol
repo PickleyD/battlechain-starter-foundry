@@ -33,7 +33,7 @@ contract Attack is Script {
         console.log("Vault balance before:", vaultBefore / 1e18, "tokens");
         console.log("Deploying attacker...");
 
-        vm.startBroadcast();
+        vm.startBroadcast(attackerAddr);
 
         // Deploy the attacker — pointed at the vault, armed with bounty terms
         Attacker attacker = new Attacker(vault, token, recoveryAddress, BOUNTY_BPS);

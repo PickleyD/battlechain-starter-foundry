@@ -1,30 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {Script, console} from "forge-std/Script.sol";
-import {IAttackRegistry} from "../src/interfaces/IBattleChain.sol";
+import {console} from "forge-std/console.sol";
+import {BCSafeHarbor} from "battlechain-lib/BCSafeHarbor.sol";
 
 /// @notice Step 3 (Protocol): Submit the attack mode request for DAO review.
 ///
 /// Prerequisites — set in .env:
-///   AGREEMENT_ADDRESS
+///   SENDER_ADDRESS, AGREEMENT_ADDRESS
 ///
 /// Usage:
-///   forge script script/RequestAttackMode.s.sol --rpc-url battlechain --broadcast
+///   just request-attack-mode
 ///
 /// After running, wait for DAO approval. Check status with:
-///   cast call $ATTACK_REGISTRY "getAgreementState(address)(uint8)" $AGREEMENT_ADDRESS \
-///     --rpc-url https://testnet.battlechain.com:3051
+///   just check-state
 ///   # 2 = ATTACK_REQUESTED, 3 = UNDER_ATTACK (approved)
-contract RequestAttackMode is Script {
-    address constant ATTACK_REGISTRY = 0x9E62988ccA776ff6613Fa68D34c9AB5431Ce57e1;
-
+contract RequestAttackMode is BCSafeHarbor {
     function run() external {
         address agreement = vm.envAddress("AGREEMENT_ADDRESS");
 
         vm.startBroadcast();
 
-        IAttackRegistry(ATTACK_REGISTRY).requestUnderAttack(agreement);
+        requestAttackMode(agreement);
 
         vm.stopBroadcast();
 

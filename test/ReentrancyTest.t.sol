@@ -32,7 +32,7 @@ contract ReentrancyTest is Test {
         vm.stopPrank();
 
         // Set env vars for the script
-        vm.setEnv("PRIVATE_KEY", vm.toString(attackerKey));
+        vm.setEnv("SENDER_ADDRESS", vm.toString(attackerEOA));
         vm.setEnv("TOKEN_ADDRESS", vm.toString(address(token)));
         vm.setEnv("VAULT_ADDRESS", vm.toString(address(vault)));
         vm.setEnv("RECOVERY_ADDRESS", vm.toString(recovery));
