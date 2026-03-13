@@ -29,19 +29,19 @@ attack:
 
 # Step 1: Deploy MockToken + VulnerableVault, seed the vault (browser wallet)
 setup-browser:
-    forge script script/Setup.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --skip-simulation --verify {{bc-verify-flags}}
+    forge script script/Setup.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --chain {{bc-chain-id}} --skip-simulation --verify {{bc-verify-flags}}
 
 # Step 2: Create Safe Harbor agreement (browser wallet)
 create-agreement-browser:
-    forge script script/CreateAgreement.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --skip-simulation --verify {{bc-verify-flags}}
+    forge script script/CreateAgreement.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --chain {{bc-chain-id}} --skip-simulation --verify {{bc-verify-flags}}
 
 # Step 3: Request attack mode (browser wallet)
 request-attack-mode-browser:
-    forge script script/RequestAttackMode.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --skip-simulation --verify {{bc-verify-flags}}
+    forge script script/RequestAttackMode.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --chain {{bc-chain-id}} --skip-simulation --verify {{bc-verify-flags}}
 
 # Step 4: Execute the attack (browser wallet)
 attack-browser:
-    forge script script/Attack.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --skip-simulation --verify {{bc-verify-flags}}
+    forge script script/Attack.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --chain {{bc-chain-id}} --skip-simulation --verify {{bc-verify-flags}}
 
 # ── Verification ──────────────────────────────────────────────────────────────
 
