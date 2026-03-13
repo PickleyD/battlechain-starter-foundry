@@ -25,6 +25,24 @@ request-attack-mode:
 attack:
     forge script script/Attack.s.sol --rpc-url {{RPC}} --broadcast -vvv --account {{ACCT}} --sender $SENDER_ADDRESS --legacy --gas-limit 90000000 --skip-simulation
 
+# ── Browser wallet (AI-initiated, user-approved) ─────────────────────────────
+
+# Step 1: Deploy MockToken + VulnerableVault, seed the vault (browser wallet)
+setup-browser:
+    forge script script/Setup.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --skip-simulation --verify {{bc-verify-flags}}
+
+# Step 2: Create Safe Harbor agreement (browser wallet)
+create-agreement-browser:
+    forge script script/CreateAgreement.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --skip-simulation --verify {{bc-verify-flags}}
+
+# Step 3: Request attack mode (browser wallet)
+request-attack-mode-browser:
+    forge script script/RequestAttackMode.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --skip-simulation --verify {{bc-verify-flags}}
+
+# Step 4: Execute the attack (browser wallet)
+attack-browser:
+    forge script script/Attack.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --skip-simulation --verify {{bc-verify-flags}}
+
 # ── Verification ──────────────────────────────────────────────────────────────
 
 # Verify all contracts from the Setup broadcast

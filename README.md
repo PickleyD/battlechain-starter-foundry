@@ -22,6 +22,7 @@ A starter repo for interacting with the Battlechain Safe Harbor protocol. Includ
   - You'll know you did it right if you can run `git --version` and you see a response like `git version x.x.x`
 - [foundry](https://getfoundry.sh/)
   - You'll know you did it right if you can run `forge --version` and you see a response like `forge 0.2.0 (816e00b 2023-03-16T00:05:26.396218Z)`
+  - For browser wallet targets (`just *-browser`), you need forge >= `1.6.0-nightly` (commit `c1cdc6c1`, 2026-03-10) or later
 - [just](https://github.com/casey/just)
   - You'll know you did it right if you can run `just --version` and you see a response like `just 1.x.x`
 
