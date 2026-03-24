@@ -58,7 +58,7 @@
 # # Check agreement state (2=ATTACK_REQUESTED, 3=UNDER_ATTACK)
 # check-state:
 #     cast call $ATTACK_REGISTRY "getAgreementState(address)(uint8)" $AGREEMENT_ADDRESS \
-#         --rpc-url https://testnet.battlechain.com:3051
+#         --rpc-url https://testnet.battlechain.com
 
 # build:
 #     forge build
