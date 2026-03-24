@@ -1,4 +1,16 @@
 {
+  "lib/battlechain-lib": {
+    "tag": {
+      "name": "0.1.1",
+      "rev": "8589d1b03bb74480c37b80d0ea17b00968a7ccda"
+    }
+  },
+  "lib/forge-std": {
+    "tag": {
+      "name": "v1.15.0",
+      "rev": "0844d7e1fc5e60d77b68e469bff60265f236c398"
+    }
+  },
   "lib/openzeppelin-contracts": {
     "rev": "fcbae5394ae8ad52d8e580a3477db99814b9d565"
   }
