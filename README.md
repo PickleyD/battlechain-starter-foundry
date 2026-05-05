@@ -48,11 +48,21 @@ just build
 just setup
 
 # Step 2: Create Safe Harbor agreement (requires VAULT_ADDRESS in .env)
+# Optionally set RECOVERY_ADDRESS first — it's baked into the agreement and
+# also used by Step 2b and Step 4. Defaults to SENDER_ADDRESS if unset.
 just create-agreement
+
+# Step 2b: Deploy a ConfidencePool and seed it with a bonus
+# (requires AGREEMENT_ADDRESS, TOKEN_ADDRESS in .env)
+just create-confidence-pool
 
 # Step 3: Request attack mode (requires AGREEMENT_ADDRESS in .env)
 just request-attack-mode
 ```
+
+### ConfidencePool
+
+A ConfidencePool is a small contract bound 1:1 to a Safe Harbor agreement that holds a pre-funded bonus (and any later stakes). Whitehat bots use the pool's total pot to rank attackable agreements by expected payoff, so seeding it before requesting attack mode means the bonus is visible from the moment the agreement becomes attackable. The default seeds the pool with 1000 tokens — override with `BONUS_AMOUNT` in `.env` if needed.
 
 ## Whitehat Role
 

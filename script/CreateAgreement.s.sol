@@ -15,6 +15,9 @@ import {
 /// Prerequisites — set in .env:
 ///   SENDER_ADDRESS, VAULT_ADDRESS
 ///
+/// Optional .env overrides:
+///   RECOVERY_ADDRESS (default: SENDER_ADDRESS — also used by Attack and ConfidencePool steps)
+///
 /// Usage:
 ///   just create-agreement
 ///
@@ -24,6 +27,7 @@ contract CreateAgreement is BCSafeHarbor {
 
     function run() external {
         address vault = vm.envAddress("VAULT_ADDRESS");
+        address recovery = _envAddressOr("RECOVERY_ADDRESS", vm.envAddress("SENDER_ADDRESS"));
 
         vm.startBroadcast();
 
@@ -47,7 +51,7 @@ contract CreateAgreement is BCSafeHarbor {
 
         // 4. Build agreement details (auto-detects chain scope and URI)
         AgreementDetails memory details = defaultAgreementDetails(
-            "BattleChain Starter Demo", contacts, contracts_, msg.sender
+            "BattleChain Starter Demo", contacts, contracts_, recovery
         );
         details.bountyTerms = bountyTerms;
 
@@ -63,5 +67,11 @@ contract CreateAgreement is BCSafeHarbor {
         console.log("Safe Harbor adopted");
         console.log("\n--- Add to your .env ---");
         console.log("AGREEMENT_ADDRESS=%s", agreement);
+    }
+
+    /// @dev Like vm.envOr, but treats an empty string ("") the same as unset.
+    function _envAddressOr(string memory name, address defaultValue) private view returns (address) {
+        string memory raw = vm.envOr(name, string(""));
+        return bytes(raw).length == 0 ? defaultValue : vm.parseAddress(raw);
     }
 }

@@ -15,6 +15,10 @@ setup:
 create-agreement:
     forge script script/CreateAgreement.s.sol --rpc-url {{RPC}} --broadcast -vvv --account {{ACCT}} --sender $SENDER_ADDRESS --skip-simulation
 
+# Step 2b: Deploy a ConfidencePool for the agreement and seed it with a bonus
+create-confidence-pool:
+    forge script script/CreateConfidencePool.s.sol --rpc-url {{RPC}} --broadcast -vvv --account {{ACCT}} --sender $SENDER_ADDRESS --skip-simulation
+
 # Step 3: Request attack mode (requires AGREEMENT_ADDRESS in .env)
 request-attack-mode:
     forge script script/RequestAttackMode.s.sol --rpc-url {{RPC}} --broadcast -vvv --account {{ACCT}} --sender $SENDER_ADDRESS --skip-simulation
@@ -23,7 +27,7 @@ request-attack-mode:
 
 # Step 4: Execute the attack (requires DAO approval first)
 attack:
-    forge script script/Attack.s.sol --rpc-url {{RPC}} --broadcast -vvv --account {{ACCT}} --sender $SENDER_ADDRESS --skip-simulation
+    forge script script/Attack.s.sol --rpc-url {{RPC}} --broadcast -vvv --account {{ACCT}} --sender $SENDER_ADDRESS --skip-simulation --verify {{bc-verify-flags}}
 
 # ── Browser wallet (AI-initiated, user-approved) ─────────────────────────────
 
@@ -34,6 +38,10 @@ setup-browser:
 # Step 2: Create Safe Harbor agreement (browser wallet)
 create-agreement-browser:
     forge script script/CreateAgreement.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --chain {{bc-chain-id}} --skip-simulation --verify {{bc-verify-flags}}
+
+# Step 2b: Deploy a ConfidencePool and seed it with a bonus (browser wallet)
+create-confidence-pool-browser:
+    forge script script/CreateConfidencePool.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --chain {{bc-chain-id}} --skip-simulation --verify {{bc-verify-flags}}
 
 # Step 3: Request attack mode (browser wallet)
 request-attack-mode-browser:
@@ -48,6 +56,28 @@ attack-browser:
 # Verify all contracts from the Setup broadcast
 verify-setup:
     just bc-verify-broadcast script/Setup.s.sol
+
+# Verify the deployed ConfidencePool by reading its constructor args off-chain.
+# Reads CONFIDENCE_POOL_ADDRESS from .env.
+verify-confidence-pool:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    addr="${CONFIDENCE_POOL_ADDRESS:?CONFIDENCE_POOL_ADDRESS not set in .env}"
+    echo "Reading constructor args from $addr..."
+    registry=$(cast call "$addr" "registry()(address)" --rpc-url {{RPC}})
+    agreement=$(cast call "$addr" "agreement()(address)" --rpc-url {{RPC}})
+    stake_token=$(cast call "$addr" "stakeToken()(address)" --rpc-url {{RPC}})
+    outcome_moderator=$(cast call "$addr" "outcomeModerator()(address)" --rpc-url {{RPC}})
+    recovery=$(cast call "$addr" "recoveryAddress()(address)" --rpc-url {{RPC}})
+    owner=$(cast call "$addr" "owner()(address)" --rpc-url {{RPC}})
+    args=$(cast abi-encode "constructor(address,address,address,address,address,address)" \
+        "$registry" "$agreement" "$stake_token" "$outcome_moderator" "$recovery" "$owner")
+    echo "Verifying ConfidencePool at $addr"
+    forge verify-contract "$addr" src/ConfidencePool.sol:ConfidencePool \
+        --constructor-args "$args" \
+        --chain-id {{bc-chain-id}} \
+        {{bc-verify-flags}} \
+        --rpc-url {{RPC}}
 
 # ── Utilities ──────────────────────────────────────────────────────────────────
 
