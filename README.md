@@ -8,6 +8,7 @@
 - [Usage](#usage)
   - [Protocol Role](#protocol-role)
   - [Whitehat Role](#whitehat-role)
+  - [Settle the ConfidencePool](#settle-the-confidencepool)
   - [Utilities](#utilities)
 
 # About
@@ -69,6 +70,31 @@ A ConfidencePool is a small contract bound 1:1 to a Safe Harbor agreement that h
 ```bash
 # Step 4: Execute the attack (requires DAO approval first)
 just attack
+```
+
+## Settle the ConfidencePool
+
+After the attack drains the vault, the agreement is still in `UNDER_ATTACK` (3) — nothing on-chain detects the exploit automatically. Settling the ConfidencePool takes three more transactions:
+
+```bash
+# Step 5 (Moderator): Mark the agreement as CORRUPTED on the AttackRegistry.
+# Callable by the agreement's attack moderator (= the deployer in this demo).
+just mark-corrupted
+
+# Step 6 (Pool outcomeModerator): Flag the pool outcome as good-faith corruption,
+# attributed to the attacker. Callable by the pool's outcomeModerator
+# (defaults to SENDER_ADDRESS at create-confidence-pool time).
+just flag-outcome
+
+# Step 7 (Attacker): Drain the pool's entire pot to the attacker's wallet.
+just claim-corrupted
+```
+
+In this single-wallet demo all three steps are signed by `SENDER_ADDRESS`, but the contracts enforce three distinct roles. Confirm the result:
+
+```bash
+# Pool should now hold 0 tokens
+cast call $CONFIDENCE_POOL_ADDRESS "totalPot()(uint256)" --rpc-url https://testnet.battlechain.com
 ```
 
 ## Utilities

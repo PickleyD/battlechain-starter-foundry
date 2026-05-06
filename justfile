@@ -29,6 +29,20 @@ request-attack-mode:
 attack:
     forge script script/Attack.s.sol --rpc-url {{RPC}} --broadcast -vvv --account {{ACCT}} --sender $SENDER_ADDRESS --skip-simulation --verify {{bc-verify-flags}}
 
+# ── Settle the ConfidencePool (post-attack) ───────────────────────────────────
+
+# Step 5 (Moderator): Mark the agreement as CORRUPTED on the AttackRegistry
+mark-corrupted:
+    forge script script/MarkCorrupted.s.sol --rpc-url {{RPC}} --broadcast -vvv --account {{ACCT}} --sender $SENDER_ADDRESS --skip-simulation
+
+# Step 6 (Pool outcomeModerator): Flag the pool outcome as good-faith corruption
+flag-outcome:
+    forge script script/FlagOutcome.s.sol --rpc-url {{RPC}} --broadcast -vvv --account {{ACCT}} --sender $SENDER_ADDRESS --skip-simulation
+
+# Step 7 (Attacker): Claim the entire ConfidencePool pot
+claim-corrupted:
+    forge script script/ClaimCorrupted.s.sol --rpc-url {{RPC}} --broadcast -vvv --account {{ACCT}} --sender $SENDER_ADDRESS --skip-simulation
+
 # ── Browser wallet (AI-initiated, user-approved) ─────────────────────────────
 
 # Step 1: Deploy MockToken + VulnerableVault, seed the vault (browser wallet)
@@ -50,6 +64,18 @@ request-attack-mode-browser:
 # Step 4: Execute the attack (browser wallet)
 attack-browser:
     forge script script/Attack.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --chain {{bc-chain-id}} --skip-simulation --verify {{bc-verify-flags}}
+
+# Step 5: Mark the agreement as CORRUPTED (browser wallet)
+mark-corrupted-browser:
+    forge script script/MarkCorrupted.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --chain {{bc-chain-id}} --skip-simulation --verify {{bc-verify-flags}}
+
+# Step 6: Flag the pool outcome (browser wallet)
+flag-outcome-browser:
+    forge script script/FlagOutcome.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --chain {{bc-chain-id}} --skip-simulation --verify {{bc-verify-flags}}
+
+# Step 7: Claim the ConfidencePool pot (browser wallet)
+claim-corrupted-browser:
+    forge script script/ClaimCorrupted.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --chain {{bc-chain-id}} --skip-simulation --verify {{bc-verify-flags}}
 
 # ── Verification ──────────────────────────────────────────────────────────────
 

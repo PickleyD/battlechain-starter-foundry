@@ -27,7 +27,7 @@ contract Attack is Script {
         address attackerAddr = vm.envAddress("SENDER_ADDRESS");
         address token        = vm.envAddress("TOKEN_ADDRESS");
         address vault = vm.envAddress("VAULT_ADDRESS");
-        address recoveryAddress = vm.envAddress("RECOVERY_ADDRESS");
+        address recoveryAddress = _envAddressOr("RECOVERY_ADDRESS", attackerAddr);
 
         uint256 vaultBefore = IERC20(token).balanceOf(vault);
         console.log("Vault balance before:", vaultBefore / 1e18, "tokens");
@@ -54,5 +54,11 @@ contract Attack is Script {
         console.log("Vault after:       ", vaultAfter / 1e18, "tokens");
         console.log("Bounty kept:       ", bounty / 1e18, "tokens");
         console.log("Returned to protocol:", returned / 1e18, "tokens");
+    }
+
+    /// @dev Like vm.envOr, but treats an empty string ("") the same as unset.
+    function _envAddressOr(string memory name, address defaultValue) private view returns (address) {
+        string memory raw = vm.envOr(name, string(""));
+        return bytes(raw).length == 0 ? defaultValue : vm.parseAddress(raw);
     }
 }
