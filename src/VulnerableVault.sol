@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {MockToken} from "./MockToken.sol";
 
 /// @title VulnerableVault
 /// @notice A simple token vault with a deliberate CEI (Checks-Effects-Interactions) violation.
@@ -22,8 +23,17 @@ contract VulnerableVault {
     event Deposited(address indexed user, uint256 amount);
     event Withdrawn(address indexed user, uint256 amount);
 
-    constructor(address _token) {
-        TOKEN = IERC20(_token);
+    /// @param _seed Protocol liquidity minted into the vault on deployment.
+    /// @dev Demo convenience: the vault deploys its OWN MockToken and seeds itself,
+    ///      so standing up the protocol is a single transaction (one wallet signature).
+    ///      Real vaults take an existing token address; this shortcut only changes
+    ///      setup — the CEI vulnerability in withdrawAll() below is the real lesson.
+    constructor(uint256 _seed) {
+        MockToken token = new MockToken();
+        TOKEN = IERC20(address(token));
+        if (_seed > 0) {
+            token.mint(address(this), _seed);
+        }
     }
 
     /// @notice Deposit tokens into the vault.
