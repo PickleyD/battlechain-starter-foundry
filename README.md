@@ -85,8 +85,8 @@ https://portal.battlechain.com/bridge).
 ## 2. Protocol role
 
 ```bash
-# Deploy the vulnerable protocol. The vault deploys + seeds its own MockToken.
-# Copy the logged VAULT_ADDRESS and TOKEN_ADDRESS into .env.
+# Deploy the vulnerable protocol. The vault seeds itself from the shared demo token
+# (TOKEN_ADDRESS, pre-filled in .env). Copy the logged VAULT_ADDRESS into .env.
 just deploy-protocol
 
 # Register a Safe Harbor agreement scoping the vault. Copy AGREEMENT_ADDRESS into .env.
@@ -111,6 +111,15 @@ just request-attack-mode
 
 A ConfidencePool is a small contract bound 1:1 to a Safe Harbor agreement that holds a pre-funded bonus (and any later stakes). Whitehat bots use the pool's total pot to rank attackable agreements by expected payoff, so seeding it before requesting attack mode means the bonus is visible from the moment the agreement becomes attackable. The default seeds the pool with 1000 tokens — override with `BONUS_AMOUNT` in `.env` if needed.
 
+> **Why a shared token?** The `ConfidencePoolFactory` only accepts stake tokens that its owner has allowlisted, so a token minted fresh per run could never be pre-approved. The demo therefore points the vault at one canonical, already-allowlisted `MockToken` (`TOKEN_ADDRESS`, pre-filled in `.env.example`). `MockToken.mint` is public, so every participant can mint whatever they need from it.
+
+Optionally, anyone can **stake** confidence that the protocol survives. Stakers who back a protocol that ends in `PRODUCTION` reclaim their stake plus a pro-rata share of the bonus; if it's corrupted, the stake is forfeit. Staking is open any time before the pool is settled (i.e. before `mark-corrupted`):
+
+```bash
+# Stake STAKE_AMOUNT tokens (default: the pool's minStake) that the protocol survives.
+just stake-confidence
+```
+
 ## 3. Whitehat role
 
 ```bash
@@ -130,19 +139,21 @@ After the attack drains the vault, the agreement is still in `UNDER_ATTACK` (3) 
 just mark-corrupted
 
 # Step 6 (Pool outcomeModerator): Flag the pool outcome as good-faith corruption,
-# attributed to the attacker. Callable by the pool's outcomeModerator
-# (defaults to SENDER_ADDRESS at create-confidence-pool time).
+# attributed to the attacker. The pool's outcomeModerator is the testnet's
+# permissionless MockConfidencePoolModerator, so anyone can flag (agreement-state
+# checks still run on the pool) — this routes through it, same as attack-mode approval.
 just flag-outcome
 
-# Step 7 (Attacker): Drain the pool's entire pot to the attacker's wallet.
+# Step 7 (Attacker): Claim the pool's entire pot to the attacker's wallet
+# (good-faith attacker bounty).
 just claim-corrupted
 ```
 
-In this single-wallet demo all three steps are signed by `SENDER_ADDRESS`, but the contracts enforce three distinct roles. Confirm the result:
+In this single-wallet demo all steps are signed by `SENDER_ADDRESS`, but the contracts enforce distinct roles. Confirm the result:
 
 ```bash
 # Pool should now hold 0 tokens
-cast call $CONFIDENCE_POOL_ADDRESS "totalPot()(uint256)" --rpc-url https://testnet.battlechain.com
+cast call $TOKEN_ADDRESS "balanceOf(address)(uint256)" $CONFIDENCE_POOL_ADDRESS --rpc-url https://testnet.battlechain.com
 ```
 
 ## Verify on the explorer

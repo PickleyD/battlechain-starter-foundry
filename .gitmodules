@@ -7,3 +7,6 @@
 [submodule "lib/battlechain-lib"]
 	path = lib/battlechain-lib
 	url = https://github.com/cyfrin/battlechain-lib
+[submodule "lib/bc-confidence-pools"]
+	path = lib/bc-confidence-pools
+	url = https://github.com/Cyfrin/bc-confidence-pools

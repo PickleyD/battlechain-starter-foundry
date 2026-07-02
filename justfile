@@ -14,6 +14,10 @@ bc-registry        := "0x07E09f67B272aec60eebBfB3D592eC649BDCFEFc"
 bc-attack-registry := "0x22134e878c409a0Eab7259d873b38e26Ca966d3C"
 bc-factory         := "0xf52CEA27b9E20D03Ec48CDe4fafF8F27565646f2"
 bc-moderator       := "0x3DdA228A38b4d7438bBF5D5137c8D1090DcaF6bF"
+# Shared demo MockToken, pre-allowlisted on the ConfidencePoolFactory. The vault seeds
+# itself from this token (rather than minting a per-run token) so its address is stable
+# and pool creation isn't blocked by the factory's owner-gated stake-token allowlist.
+bc-demo-token      := "0x12EA23f5600d831cEE92cdbfA10F534a5e7BEF39"
 
 # ══ Agentic tutorial — browser wallet (MetaMask/Trezor), via cast ════════════
 # `forge script --browser` hangs waiting on the wallet to report the receipt, but
@@ -22,15 +26,15 @@ bc-moderator       := "0x3DdA228A38b4d7438bBF5D5137c8D1090DcaF6bF"
 # each in the FOREGROUND, waits for you to approve in your wallet, then reads the
 # new address from the receipt into .env before the next step.
 
-# Step 1: Deploy the protocol. The vault deploys + seeds its own MockToken; routing
-# through the deployer registers the vault with the AttackRegistry (required for
-# attack mode). Read VAULT_ADDRESS from the ContractCreation log in the receipt,
-# then: cast call <vault> "TOKEN()(address)" --rpc-url {{RPC}}  → TOKEN_ADDRESS.
+# Step 1: Deploy the protocol. The vault seeds itself from the shared demo token; routing
+# through the deployer registers the vault with the AttackRegistry (required for attack
+# mode). Read VAULT_ADDRESS from the ContractCreation log in the receipt. TOKEN_ADDRESS is
+# the shared {{bc-demo-token}} (already in .env.example).
 deploy-protocol-browser:
     #!/usr/bin/env bash
     set -euo pipefail
-    SEED=$(cast abi-encode "constructor(uint256)" 1000000000000000000000)
-    INITCODE="$(forge inspect VulnerableVault bytecode)${SEED#0x}"
+    ARGS=$(cast abi-encode "constructor(uint256,address)" 1000000000000000000000 {{bc-demo-token}})
+    INITCODE="$(forge inspect VulnerableVault bytecode)${ARGS#0x}"
     cast send {{bc-deployer}} "deployCreate(bytes)" "$INITCODE" --browser --rpc-url {{RPC}}
 
 # Step 2: Create the Safe Harbor agreement (requires VAULT_ADDRESS + SENDER_ADDRESS).
@@ -62,7 +66,7 @@ request-attack-mode-browser:
 attack-browser:
     #!/usr/bin/env bash
     set -euo pipefail
-    ARGS=$(cast abi-encode "constructor(address,address,address,address)" "$VAULT_ADDRESS" "$RECOVERY_ADDRESS" "$AGREEMENT_ADDRESS" {{bc-moderator}})
+    ARGS=$(cast abi-encode "constructor(address,address,address,address,address)" "$VAULT_ADDRESS" "$RECOVERY_ADDRESS" "$AGREEMENT_ADDRESS" {{bc-moderator}} {{bc-attack-registry}})
     INITCODE="$(forge inspect Exploit bytecode)${ARGS#0x}"
     cast send --browser --rpc-url {{RPC}} --create "$INITCODE"
 
@@ -77,6 +81,11 @@ create-agreement:
 # Step 2b: Deploy a ConfidencePool for the agreement and seed it with a bonus
 create-confidence-pool:
     forge script script/CreateConfidencePool.s.sol --rpc-url {{RPC}} --broadcast -vvv --account {{ACCT}} --sender $SENDER_ADDRESS --skip-simulation
+
+# Optional: stake confidence that the protocol survives (any time before mark-corrupted).
+# Amount from STAKE_AMOUNT in .env (default: the pool's minStake).
+stake-confidence:
+    forge script script/StakeConfidence.s.sol --rpc-url {{RPC}} --broadcast -vvv --account {{ACCT}} --sender $SENDER_ADDRESS --skip-simulation
 
 set-commitment-window:
     forge script script/SetCommitmentWindow.s.sol --rpc-url {{RPC}} --broadcast -vvv --account {{ACCT}} --sender $SENDER_ADDRESS --skip-simulation
@@ -124,6 +133,10 @@ verify-protocol-browser:
 create-confidence-pool-browser:
     forge script script/CreateConfidencePool.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --chain {{bc-chain-id}} --skip-simulation --verify {{bc-verify-flags}}
 
+# Optional: stake confidence (browser wallet). Amount from STAKE_AMOUNT (default: minStake).
+stake-confidence-browser:
+    forge script script/StakeConfidence.s.sol --rpc-url {{RPC}} --broadcast -vvv --browser --chain {{bc-chain-id}} --skip-simulation
+
 # Verify the Exploit + Attacker (after a keystore attack)
 verify-exploit:
     just bc-verify-broadcast script/Attack.s.sol
@@ -150,27 +163,20 @@ approve-attack-mode-browser:
 
 # ══ Verification ═════════════════════════════════════════════════════════════
 
-# Verify the deployed ConfidencePool by reading its constructor args off-chain.
+# ConfidencePools are EIP-1167 minimal-proxy clones of a single, already-deployed
+# implementation (see the ConfidencePoolFactory). There are no per-pool constructor
+# args to verify — clones carry no code of their own beyond the proxy stub, which
+# explorers auto-detect and link to the verified implementation. This recipe just
+# prints the implementation the clone points at so you can confirm it's verified.
 # Reads CONFIDENCE_POOL_ADDRESS from .env.
+CONFIDENCE_POOL_IMPL := "0xbe6e89CF59c71aF6090d06F83F2c760AD79e4164"
 verify-confidence-pool:
     #!/usr/bin/env bash
     set -euo pipefail
     addr="${CONFIDENCE_POOL_ADDRESS:?CONFIDENCE_POOL_ADDRESS not set in .env}"
-    echo "Reading constructor args from $addr..."
-    registry=$(cast call "$addr" "registry()(address)" --rpc-url {{RPC}})
-    agreement=$(cast call "$addr" "agreement()(address)" --rpc-url {{RPC}})
-    stake_token=$(cast call "$addr" "stakeToken()(address)" --rpc-url {{RPC}})
-    outcome_moderator=$(cast call "$addr" "outcomeModerator()(address)" --rpc-url {{RPC}})
-    recovery=$(cast call "$addr" "recoveryAddress()(address)" --rpc-url {{RPC}})
-    owner=$(cast call "$addr" "owner()(address)" --rpc-url {{RPC}})
-    args=$(cast abi-encode "constructor(address,address,address,address,address,address)" \
-        "$registry" "$agreement" "$stake_token" "$outcome_moderator" "$recovery" "$owner")
-    echo "Verifying ConfidencePool at $addr"
-    forge verify-contract "$addr" src/ConfidencePool.sol:ConfidencePool \
-        --constructor-args "$args" \
-        --chain-id {{bc-chain-id}} \
-        {{bc-verify-flags}} \
-        --rpc-url {{RPC}}
+    echo "ConfidencePool $addr is an EIP-1167 clone of implementation {{CONFIDENCE_POOL_IMPL}}."
+    echo "Clones have no own bytecode to verify; confirm the implementation is verified on the explorer:"
+    echo "  https://explorer.testnet.battlechain.com/address/{{CONFIDENCE_POOL_IMPL}}"
 
 # ══ Utilities ════════════════════════════════════════════════════════════════
 

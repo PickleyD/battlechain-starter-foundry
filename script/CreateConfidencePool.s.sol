@@ -1,26 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity 0.8.26;
 
 import {console} from "forge-std/console.sol";
 import {Script} from "forge-std/Script.sol";
 import {MockToken} from "../src/MockToken.sol";
-
-interface IConfidencePoolFactory {
-    struct CreateParams {
-        address agreement;
-        address stakeToken;
-        address outcomeModerator;
-        address recoveryAddress;
-    }
-
-    function createPool(CreateParams calldata p) external returns (address pool);
-    function poolOf(address agreement) external view returns (address);
-}
-
-interface IConfidencePool {
-    function contributeBonus(uint256 amount) external;
-    function totalPot() external view returns (uint256);
-}
+import {IConfidencePoolFactory} from "bc-confidence-pools/interfaces/IConfidencePoolFactory.sol";
+import {IConfidencePool} from "bc-confidence-pools/interfaces/IConfidencePool.sol";
 
 /// @notice Step 2b (Protocol): Deploy a ConfidencePool for the agreement and seed it with a bonus.
 ///
@@ -30,12 +15,15 @@ interface IConfidencePool {
 /// bonus is visible from the moment the agreement becomes attackable.
 ///
 /// Prerequisites — set in .env:
-///   SENDER_ADDRESS, AGREEMENT_ADDRESS, TOKEN_ADDRESS
+///   SENDER_ADDRESS, AGREEMENT_ADDRESS, TOKEN_ADDRESS, VAULT_ADDRESS
 ///
 /// Optional .env overrides:
 ///   RECOVERY_ADDRESS   (default: SENDER_ADDRESS — should match what create-agreement used)
 ///   BONUS_AMOUNT       (default: 1000e18 — matches vault TVL)
-///   OUTCOME_MODERATOR  (default: SENDER_ADDRESS — lets the demo flag outcomes itself)
+///   EXPIRY             (default: now + 31 days — when the pool auto-resolves if no outcome flagged;
+///                       must be at least now + 30 days or the pool reverts ExpiryTooSoon)
+///   MIN_STAKE          (default: 1e18 — the pool requires a non-zero minimum stake, even though
+///                       this demo only seeds a bonus and never stakes)
 ///   FACTORY_ADDRESS    (default: deployed BattleChain testnet factory)
 ///
 /// Usage:
@@ -43,30 +31,35 @@ interface IConfidencePool {
 ///
 /// After running, copy CONFIDENCE_POOL_ADDRESS into your .env file.
 contract CreateConfidencePool is Script {
-    address private constant DEFAULT_FACTORY = 0xB2a4d5751e80F6C47DaC5dfCb56CbA5b4D690eAA;
+    address private constant DEFAULT_FACTORY = 0x44aF705d8289e97c0E48441E4E566c5faf43Ffa8;
     uint256 private constant DEFAULT_BONUS = 1_000e18;
+    // The pool enforces expiry >= now + 30 days (_MIN_EXPIRY_LEAD). Use 31 days so the
+    // margin survives the gap between forge's simulation and the actual broadcast block.
+    uint256 private constant DEFAULT_EXPIRY_PERIOD = 31 days;
+    uint256 private constant DEFAULT_MIN_STAKE = 1e18; // pool requires minStake > 0
 
     function run() external {
         address agreement = vm.envAddress("AGREEMENT_ADDRESS");
         address token = vm.envAddress("TOKEN_ADDRESS");
+        address vault = vm.envAddress("VAULT_ADDRESS");
         address sender = vm.envAddress("SENDER_ADDRESS");
 
         address recovery = _envAddressOr("RECOVERY_ADDRESS", sender);
         uint256 bonusAmount = _envUintOr("BONUS_AMOUNT", DEFAULT_BONUS);
-        address outcomeModerator = _envAddressOr("OUTCOME_MODERATOR", sender);
+        uint256 expiry = _envUintOr("EXPIRY", block.timestamp + DEFAULT_EXPIRY_PERIOD);
+        uint256 minStake = _envUintOr("MIN_STAKE", DEFAULT_MIN_STAKE);
         address factory = _envAddressOr("FACTORY_ADDRESS", DEFAULT_FACTORY);
+
+        // Scope the pool to the vault, matching the agreement's in-scope contract.
+        address[] memory accounts = new address[](1);
+        accounts[0] = vault;
 
         vm.startBroadcast();
 
-        // 1. Deploy the pool via the factory
-        address pool = IConfidencePoolFactory(factory).createPool(
-            IConfidencePoolFactory.CreateParams({
-                agreement: agreement,
-                stakeToken: token,
-                outcomeModerator: outcomeModerator,
-                recoveryAddress: recovery
-            })
-        );
+        // 1. Deploy the pool via the factory. The factory assigns its default outcome
+        //    moderator; the pool's owner is the caller (sender).
+        address pool =
+            IConfidencePoolFactory(factory).createPool(agreement, token, expiry, minStake, recovery, accounts);
 
         // 2. Mint the bonus to the deployer and approve the pool to pull it
         MockToken(token).mint(msg.sender, bonusAmount);
@@ -79,7 +72,6 @@ contract CreateConfidencePool is Script {
 
         console.log("ConfidencePool deployed:", pool);
         console.log("Bonus seeded:", bonusAmount / 1e18, "tokens");
-        console.log("Total pot:", IConfidencePool(pool).totalPot());
         console.log("\n--- Add to your .env ---");
         console.log("CONFIDENCE_POOL_ADDRESS=%s", pool);
     }

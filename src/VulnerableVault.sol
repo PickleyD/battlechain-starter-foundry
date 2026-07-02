@@ -23,16 +23,15 @@ contract VulnerableVault {
     event Deposited(address indexed user, uint256 amount);
     event Withdrawn(address indexed user, uint256 amount);
 
-    /// @param _seed Protocol liquidity minted into the vault on deployment.
-    /// @dev Demo convenience: the vault deploys its OWN MockToken and seeds itself,
-    ///      so standing up the protocol is a single transaction (one wallet signature).
-    ///      Real vaults take an existing token address; this shortcut only changes
-    ///      setup — the CEI vulnerability in withdrawAll() below is the real lesson.
-    constructor(uint256 _seed) {
-        MockToken token = new MockToken();
-        TOKEN = IERC20(address(token));
+    /// @param _seed  Protocol liquidity minted into the vault on deployment.
+    /// @param _token The stake token. The demo passes one shared, pre-allowlisted MockToken
+    ///      (the ConfidencePoolFactory only accepts owner-allowlisted tokens, so a per-run
+    ///      token could never be pre-approved). The vault mints its seed from it via the
+    ///      public MockToken.mint. Setup detail only — the CEI bug in withdrawAll() is the lesson.
+    constructor(uint256 _seed, address _token) {
+        TOKEN = IERC20(_token);
         if (_seed > 0) {
-            token.mint(address(this), _seed);
+            MockToken(_token).mint(address(this), _seed);
         }
     }
 
